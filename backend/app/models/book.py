@@ -22,8 +22,8 @@ class Book(Base):
     reading_level: Mapped[str | None] = mapped_column(sa.String(50), nullable=True)
     recommended_for: Mapped[str | None] = mapped_column(sa.String(200), nullable=True)
     pdf_file_path: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(sa.DateTime, default=datetime.datetime.utcnow)
-    updated_at: Mapped[datetime.datetime | None] = mapped_column(sa.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(sa.DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(sa.DateTime, nullable=True, onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     __table_args__ = (
         sa.Index("ix_books_isbn", "isbn"),

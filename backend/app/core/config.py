@@ -1,8 +1,9 @@
-from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
     DATABASE_URL: str = "postgresql://library:library@localhost:5432/library_db"
     SECRET_KEY: str = "change-me-in-production"
     OPENAI_API_KEY: Optional[str] = None
@@ -14,9 +15,5 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     AWS_REGION: Optional[str] = None
     S3_BUCKET_NAME: Optional[str] = None
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
 
 settings = Settings()
