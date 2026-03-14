@@ -73,7 +73,7 @@ export default function BooksPage() {
       await booksApi.uploadPdf(book.id, file);
       await load();
     } catch {
-      alert('Failed to upload PDF.');
+      setError('Failed to upload PDF. Please try again.');
     }
   }
 
