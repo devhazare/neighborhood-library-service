@@ -15,8 +15,8 @@ class Member(Base):
     address: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     status: Mapped[str] = mapped_column(sa.String(20), default="active")
     joined_date: Mapped[datetime.date | None] = mapped_column(sa.Date, nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(sa.DateTime, default=datetime.datetime.utcnow)
-    updated_at: Mapped[datetime.datetime | None] = mapped_column(sa.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(sa.DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(sa.DateTime, nullable=True, onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     __table_args__ = (
         sa.Index("ix_members_membership_id", "membership_id"),

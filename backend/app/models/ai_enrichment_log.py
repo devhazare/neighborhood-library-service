@@ -13,4 +13,4 @@ class AIEnrichmentLog(Base):
     enrichment_type: Mapped[str] = mapped_column(sa.String(100), nullable=False)
     input_text: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     output_json: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(sa.DateTime, default=datetime.datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(sa.DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
