@@ -5,7 +5,7 @@ alembic==1.13.1
 psycopg2-binary==2.9.9
 pydantic==2.6.1
 pydantic-settings==2.1.0
-python-multipart==0.0.9
+python-multipart==0.0.22
 pypdf==3.17.4
 httpx==0.26.0
 pytest==7.4.4
