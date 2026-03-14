@@ -15,5 +15,10 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     AWS_REGION: Optional[str] = None
     S3_BUCKET_NAME: Optional[str] = None
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
 
 settings = Settings()

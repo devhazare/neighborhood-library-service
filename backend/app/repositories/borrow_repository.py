@@ -60,22 +60,18 @@ def update_return(db: Session, borrow_id: str, return_date: datetime.date) -> Op
     return txn
 
 def mark_overdue_transactions(db: Session, today: datetime.date) -> None:
-    """Update all borrowed transactions past their due date to overdue status."""
-    from sqlalchemy import case, func
-    db.query(BorrowTransaction).filter(
+    """Update all borrowed transactions past their due date to overdue status.
+
+    overdue_days is calculated in Python to remain compatible with both
+    SQLite (tests) and PostgreSQL (production).
+    """
+    overdue_txns = db.query(BorrowTransaction).filter(
         BorrowTransaction.status == "borrowed",
         BorrowTransaction.due_date < today,
-    ).update(
-        {
-            "status": "overdue",
-            "overdue_days": (
-                db.query(
-                    func.julianday(str(today)) - func.julianday(BorrowTransaction.due_date)
-                ).correlate(BorrowTransaction).scalar_subquery()
-            ),
-        },
-        synchronize_session="fetch",
-    )
+    ).all()
+    for txn in overdue_txns:
+        txn.status = "overdue"
+        txn.overdue_days = (today - txn.due_date).days
     db.commit()
 
 def enrich_with_book_member(db: Session, txn: BorrowTransaction) -> dict:
