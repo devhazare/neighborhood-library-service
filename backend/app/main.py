@@ -7,7 +7,7 @@ from app.core.exceptions import (
     NotFoundError, ValidationError, BusinessRuleError,
     not_found_handler, validation_error_handler, business_rule_error_handler,
 )
-from app.api.routes import books, members, borrow, health
+from app.api.routes import books, members, borrow, health, auth
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,6 +37,7 @@ app.add_exception_handler(ValidationError, validation_error_handler)
 app.add_exception_handler(BusinessRuleError, business_rule_error_handler)
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(books.router)
 app.include_router(members.router)
 app.include_router(borrow.router)

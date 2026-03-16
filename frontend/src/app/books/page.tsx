@@ -10,6 +10,7 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function BooksPage() {
   const [books, setBooks] = useState<Book[]>([]);
@@ -91,12 +92,13 @@ export default function BooksPage() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex-1 min-w-48">
-          <Input
-            placeholder="Search books by title, author, ISBN, category…"
+    <ProtectedRoute>
+      <div className="space-y-4">
+        {/* Toolbar */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-48">
+            <Input
+              placeholder="Search books by title, author, ISBN, category…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -176,6 +178,7 @@ export default function BooksPage() {
           />
         )}
       </Modal>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

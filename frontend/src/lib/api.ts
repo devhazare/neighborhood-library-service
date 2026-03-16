@@ -9,10 +9,34 @@ import type {
   Recommendation,
   PaginatedResponse,
 } from './types';
+import { getToken, logout } from './auth';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const api = axios.create({ baseURL: API_BASE });
+
+// Add auth token to all requests
+api.interceptors.request.use(
+  (config) => {
+    const token = getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Handle 401 errors by logging out
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      logout();
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const booksApi = {
   list: (skip = 0, limit = 100) =>
@@ -80,3 +104,20 @@ export const dashboardApi = {
     };
   },
 };
+
+export const authApi = {
+  login: (username: string, password: string) =>
+    api.post<{ access_token: string; token_type: string }>('/api/v1/auth/login/json', {
+      username,
+      password,
+    }),
+  register: (data: {
+    username: string;
+    email: string;
+    password: string;
+    full_name?: string;
+  }) => api.post('/api/v1/auth/register', data),
+  getCurrentUser: () => api.get('/api/v1/auth/me'),
+};
+
+
