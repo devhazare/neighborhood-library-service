@@ -12,7 +12,6 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import Header from '@/components/layout/Header';
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -71,7 +70,6 @@ export default function MembersPage() {
 
   return (
     <ProtectedRoute>
-      <Header />
       <div className="container mx-auto px-4 py-8 space-y-4">
         {/* Toolbar */}
         <div className="flex items-center gap-3 flex-wrap">

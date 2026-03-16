@@ -11,7 +11,6 @@ import Card from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { cn } from '@/lib/utils';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import Header from '@/components/layout/Header';
 
 type Tab = 'active' | 'overdue' | 'borrow' | 'return';
 
@@ -50,7 +49,6 @@ export default function BorrowPage() {
 
   return (
     <ProtectedRoute>
-      <Header />
       <div className="container mx-auto px-4 py-8 space-y-4">
         {/* Tab Bar */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
