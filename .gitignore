@@ -1,6 +1,46 @@
+# Dependencies
 frontend/node_modules/
+backend/node_modules/
 node_modules/
+**/node_modules/
+
+# Environment variables
 .env
-.next
-dist
-build
+.env.local
+.env.*.local
+
+# Build outputs
+.next/
+dist/
+build/
+out/
+*.next/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Uploads and data
+uploads/
+*.pdf
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Docker
+*.dockerignore
