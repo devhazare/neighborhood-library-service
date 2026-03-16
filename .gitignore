@@ -1,2 +1,8 @@
 echo "node_modules/" >> .gitignore
 echo "frontend/node_modules/" >> .gitignore
+node_modules
+.env
+.next
+dist
+build
+.DS_Store
