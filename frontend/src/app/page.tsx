@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { formatDate } from '@/lib/utils';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 interface StatCardProps {
   label: string;
@@ -109,58 +110,60 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {statCards.map((s) => (
-          <StatCard key={s.label} {...s} />
-        ))}
-      </div>
+    <ProtectedRoute>
+      <div className="space-y-6">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {statCards.map((s) => (
+            <StatCard key={s.label} {...s} />
+          ))}
+        </div>
 
-      {/* Recent Overdue */}
-      <Card title="Recent Overdue Books" subtitle="Books past their due date">
-        {overdue.length === 0 ? (
-          <p className="text-sm text-gray-400 py-4 text-center">No overdue books. 🎉</p>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {overdue.map((b) => (
-              <div key={b.id} className="py-3 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-sm text-gray-900">{b.book_title ?? b.book_id}</p>
-                  <p className="text-xs text-gray-500">
-                    {b.member_name ?? b.member_id} · Due {formatDate(b.due_date)}
-                  </p>
+        {/* Recent Overdue */}
+        <Card title="Recent Overdue Books" subtitle="Books past their due date">
+          {overdue.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">No overdue books. 🎉</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {overdue.map((b) => (
+                <div key={b.id} className="py-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-sm text-gray-900">{b.book_title ?? b.book_id}</p>
+                    <p className="text-xs text-gray-500">
+                      {b.member_name ?? b.member_id} · Due {formatDate(b.due_date)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-red-600">
+                      {b.overdue_days}d overdue
+                    </span>
+                    <Badge status={b.status} />
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-semibold text-red-600">
-                    {b.overdue_days}d overdue
-                  </span>
-                  <Badge status={b.status} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+              ))}
+            </div>
+          )}
+        </Card>
 
-      {/* Quick Links */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { href: '/books', label: 'Manage Books', desc: 'Add, edit, and enrich books with AI', icon: '📚' },
-          { href: '/members', label: 'Manage Members', desc: 'Add members and view borrowing history', icon: '👥' },
-          { href: '/borrow', label: 'Borrow / Return', desc: 'Process loans and returns', icon: '🔄' },
-        ].map((item) => (
-          <a
-            key={item.href}
-            href={item.href}
-            className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-indigo-300 transition-all group"
-          >
-            <span className="text-2xl">{item.icon}</span>
-            <p className="mt-2 font-semibold text-gray-900 group-hover:text-indigo-700">{item.label}</p>
-            <p className="text-xs text-gray-500 mt-1">{item.desc}</p>
-          </a>
-        ))}
+        {/* Quick Links */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { href: '/books', label: 'Manage Books', desc: 'Add, edit, and enrich books with AI', icon: '📚' },
+            { href: '/members', label: 'Manage Members', desc: 'Add members and view borrowing history', icon: '👥' },
+            { href: '/borrow', label: 'Borrow / Return', desc: 'Process loans and returns', icon: '🔄' },
+          ].map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md hover:border-indigo-300 transition-all group"
+            >
+              <span className="text-2xl">{item.icon}</span>
+              <p className="mt-2 font-semibold text-gray-900 group-hover:text-indigo-700">{item.label}</p>
+              <p className="text-xs text-gray-500 mt-1">{item.desc}</p>
+            </a>
+          ))}
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }

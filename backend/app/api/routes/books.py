@@ -4,6 +4,8 @@ from typing import List
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.exceptions import NotFoundError, ValidationError
+from app.core.auth import get_current_active_user
+from app.models.user import User
 from app.schemas.book import BookCreate, BookUpdate, BookResponse, BookListResponse
 from app.schemas.ai import AIEnrichmentResponse
 from app.services import book_service
@@ -19,21 +21,39 @@ def get_pdf_service():
     return PDFService(settings.PDF_UPLOAD_DIR)
 
 @router.post("", response_model=BookResponse, status_code=201)
-def create_book(book_in: BookCreate, db: Session = Depends(get_db)):
+def create_book(
+    book_in: BookCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     data = book_in.model_dump(exclude_none=False)
     return book_service.create_book(db, data)
 
 @router.get("", response_model=BookListResponse)
-def list_books(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def list_books(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     books, total = book_service.list_books(db, skip, limit)
     return BookListResponse(items=books, total=total)
 
 @router.get("/{book_id}", response_model=BookResponse)
-def get_book(book_id: str, db: Session = Depends(get_db)):
+def get_book(
+    book_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     return book_service.get_book(db, book_id)
 
 @router.put("/{book_id}", response_model=BookResponse)
-def update_book(book_id: str, book_in: BookUpdate, db: Session = Depends(get_db)):
+def update_book(
+    book_id: str,
+    book_in: BookUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
     data = book_in.model_dump(exclude_none=True)
     return book_service.update_book(db, book_id, data)
 
@@ -43,6 +63,7 @@ def upload_pdf(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     pdf_service: PDFService = Depends(get_pdf_service),
+    current_user: User = Depends(get_current_active_user)
 ):
     return book_service.upload_pdf(db, book_id, file, pdf_service)
 
@@ -52,5 +73,7 @@ def ai_enrich_book(
     db: Session = Depends(get_db),
     ai_service: AIService = Depends(get_ai_service),
     pdf_service: PDFService = Depends(get_pdf_service),
+    current_user: User = Depends(get_current_active_user)
 ):
     return book_service.enrich_book_ai(db, book_id, ai_service, pdf_service)
+
