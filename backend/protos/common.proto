@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package library.common;
+
+option go_package = "library/common";
+
+// Common message types used across services
+
+// Empty request for operations that don't need input
+message Empty {}
+
+// Pagination request parameters
+message PaginationRequest {
+  int32 skip = 1;
+  int32 limit = 2;
+}
+
+// Generic ID request
+message IdRequest {
+  string id = 1;
+}
+
+// Generic response with success status
+message StatusResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Timestamp wrapper
+message Timestamp {
+  string iso_string = 1;  // ISO 8601 formatted timestamp
+}
+

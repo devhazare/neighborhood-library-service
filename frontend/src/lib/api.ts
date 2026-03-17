@@ -8,6 +8,7 @@ import type {
   AIEnrichment,
   Recommendation,
   PaginatedResponse,
+  FinesSummary,
 } from './types';
 import { getToken, logout } from './auth';
 
@@ -53,6 +54,20 @@ export const booksApi = {
     });
   },
   aiEnrich: (id: string) => api.post<AIEnrichment>(`/api/v1/books/${id}/ai-enrich`),
+  extractPdfMetadata: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<{
+      title?: string;
+      author?: string;
+      isbn?: string;
+      publisher?: string;
+      published_year?: number;
+      category?: string;
+    }>('/api/v1/books/extract-pdf-metadata', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export const membersApi = {
@@ -86,6 +101,17 @@ export const borrowApi = {
     ),
   generateReminder: (borrowId: string) =>
     api.post<{ message: string }>(`/api/v1/borrow/${borrowId}/generate-reminder`),
+};
+
+export const finesApi = {
+  payFine: (borrowId: string) =>
+    api.post<BorrowTransaction>('/api/v1/fines/pay', { borrow_id: borrowId }),
+  listUnpaid: (memberId?: string) =>
+    api.get<PaginatedResponse<BorrowTransaction>>(
+      `/api/v1/fines/unpaid${memberId ? `?member_id=${memberId}` : ''}`
+    ),
+  getMemberFines: (memberId: string) =>
+    api.get<FinesSummary>(`/api/v1/members/${memberId}/fines`),
 };
 
 export const dashboardApi = {

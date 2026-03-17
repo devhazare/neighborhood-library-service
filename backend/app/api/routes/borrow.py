@@ -4,7 +4,7 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.core.auth import get_current_active_user
 from app.models.user import User
-from app.schemas.borrow import BorrowCreate, ReturnCreate, BorrowResponse, BorrowListResponse
+from app.schemas.borrow import BorrowCreate, ReturnCreate, BorrowResponse, BorrowListResponse, PayFineRequest, FinesSummary
 from app.schemas.ai import ReminderResponse
 from app.services import borrow_service
 from app.services.ai_service import AIService
@@ -66,4 +66,36 @@ def generate_reminder(
 ):
     msg = borrow_service.generate_reminder(db, borrow_id, ai_service)
     return ReminderResponse(message=msg)
+
+# Fine management endpoints
+@router.post("/fines/pay", response_model=BorrowResponse)
+def pay_fine(
+    pay_request: PayFineRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Pay a fine for a borrow transaction."""
+    txn = borrow_service.pay_fine(db, pay_request.borrow_id)
+    data = borrow_repository.enrich_with_book_member(db, txn)
+    return BorrowResponse(**data)
+
+@router.get("/fines/unpaid", response_model=BorrowListResponse)
+def list_unpaid_fines(
+    member_id: str = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """List all transactions with unpaid fines."""
+    txns = borrow_service.get_unpaid_fines(db, member_id)
+    items = [BorrowResponse(**borrow_repository.enrich_with_book_member(db, t)) for t in txns]
+    return BorrowListResponse(items=items, total=len(items))
+
+@router.get("/members/{member_id}/fines", response_model=FinesSummary)
+def get_member_fines(
+    member_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get fines summary for a member."""
+    return borrow_service.get_member_fines(db, member_id)
 
