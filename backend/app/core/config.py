@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     PDF_UPLOAD_DIR: str = "./uploads/pdfs"
     MAX_BORROW_DAYS: int = 14
     MAX_ACTIVE_BORROWINGS: int = 5
+    FINE_PER_DAY: float = 0.50  # Fine amount per overdue day
+    MAX_FINE_AMOUNT: float = 25.00  # Maximum fine cap
     APP_NAME: str = "Neighborhood Library Service"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False

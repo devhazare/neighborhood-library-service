@@ -18,3 +18,12 @@ class RecommendationResponse(BaseModel):
 
 class ReminderResponse(BaseModel):
     message: str
+
+class PDFMetadataResponse(BaseModel):
+    title: Optional[str] = None
+    author: Optional[str] = None
+    isbn: Optional[str] = None
+    publisher: Optional[str] = None
+    published_year: Optional[int] = None
+    category: Optional[str] = None
+

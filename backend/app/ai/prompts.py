@@ -27,3 +27,21 @@ Due Date: {due_date}
 Days Overdue: {overdue_days}
 
 Keep it under 3 sentences. Be friendly and encouraging."""
+
+PDF_METADATA_EXTRACTION_PROMPT = """You are a librarian assistant. Extract book metadata from the following PDF text (from the first few pages of a book).
+
+PDF Text:
+{text}
+
+Respond ONLY with valid JSON in this exact format (use null for fields you cannot determine):
+{{
+  "title": "The book title",
+  "author": "Author name(s)",
+  "isbn": "ISBN number if found",
+  "publisher": "Publisher name if found",
+  "published_year": 2024,
+  "category": "Primary category/genre"
+}}
+
+Important: Extract accurate information only. Use null for any field you cannot confidently determine from the text."""
+

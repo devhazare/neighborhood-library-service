@@ -55,6 +55,15 @@ export default function OverdueTable({ borrowings }: OverdueTableProps) {
       ),
     },
     {
+      key: 'fine_amount',
+      header: 'Fine',
+      render: (b) => (
+        <span className={`font-semibold ${b.fine_amount > 0 ? 'text-red-600' : 'text-gray-500'}`}>
+          ${b.fine_amount?.toFixed(2) ?? '0.00'}
+        </span>
+      ),
+    },
+    {
       key: 'status',
       header: 'Status',
       render: (b) => <Badge status={b.status} />,

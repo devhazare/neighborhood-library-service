@@ -56,8 +56,12 @@ export default function BooksPage() {
     );
   }, [search, books]);
 
-  async function handleCreate(data: BookCreate) {
-    await booksApi.create(data);
+  async function handleCreate(data: BookCreate, pdfFile?: File) {
+    const response = await booksApi.create(data);
+    // If a PDF was uploaded, attach it to the newly created book
+    if (pdfFile) {
+      await booksApi.uploadPdf(response.data.id, pdfFile);
+    }
     setFormOpen(false);
     await load();
   }

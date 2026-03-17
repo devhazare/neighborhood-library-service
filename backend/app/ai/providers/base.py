@@ -12,3 +12,8 @@ class AIProvider(ABC):
     @abstractmethod
     def generate_reminder(self, member_name: str, book_title: str, due_date: str, overdue_days: int) -> str:
         pass
+
+    @abstractmethod
+    def extract_pdf_metadata(self, text: str) -> dict:
+        pass
+

@@ -22,6 +22,10 @@ def borrow_book(db: Session, book_id: str, member_id: str):
     active_borrowings = borrow_repository.get_active_by_member(db, member_id)
     if len(active_borrowings) >= settings.MAX_ACTIVE_BORROWINGS:
         raise BusinessRuleError(f"Member has reached the maximum of {settings.MAX_ACTIVE_BORROWINGS} active borrowings.")
+    # Check for outstanding fines
+    fines_summary = borrow_repository.get_member_fines_summary(db, member_id)
+    if fines_summary["outstanding_fines"] > 0:
+        raise BusinessRuleError(f"Member has outstanding fines of ${fines_summary['outstanding_fines']:.2f}. Please clear fines before borrowing.")
     today = datetime.date.today()
     due_date = today + datetime.timedelta(days=settings.MAX_BORROW_DAYS)
     borrow_data = {
@@ -44,7 +48,11 @@ def return_book(db: Session, borrow_id: str):
     if txn.status == "returned":
         raise BusinessRuleError("This book has already been returned.")
     today = datetime.date.today()
-    updated_txn = borrow_repository.update_return(db, borrow_id, today)
+    updated_txn = borrow_repository.update_return(
+        db, borrow_id, today,
+        fine_per_day=settings.FINE_PER_DAY,
+        max_fine=settings.MAX_FINE_AMOUNT
+    )
     book = book_repository.get_by_id(db, txn.book_id)
     if book:
         book.available_copies += 1
@@ -59,10 +67,42 @@ def list_active(db: Session, skip: int = 0, limit: int = 100):
 
 def list_overdue(db: Session, skip: int = 0, limit: int = 100):
     today = datetime.date.today()
-    borrow_repository.mark_overdue_transactions(db, today)
+    borrow_repository.mark_overdue_transactions(
+        db, today,
+        fine_per_day=settings.FINE_PER_DAY,
+        max_fine=settings.MAX_FINE_AMOUNT
+    )
     txns = borrow_repository.list_overdue(db, skip, limit)
     total = borrow_repository.count_overdue(db)
     return txns, total
+
+def pay_fine(db: Session, borrow_id: str):
+    """Process fine payment for a borrow transaction."""
+    txn = borrow_repository.get_by_id(db, borrow_id)
+    if not txn:
+        raise NotFoundError(f"Borrow transaction with id '{borrow_id}' not found.")
+    if txn.fine_amount <= 0:
+        raise BusinessRuleError("No fine to pay for this transaction.")
+    if txn.fine_paid:
+        raise BusinessRuleError("Fine has already been paid.")
+    today = datetime.date.today()
+    updated_txn = borrow_repository.pay_fine(db, borrow_id, today)
+    return updated_txn
+
+def get_member_fines(db: Session, member_id: str):
+    """Get fines summary for a member."""
+    member = member_repository.get_by_id(db, member_id)
+    if not member:
+        raise NotFoundError(f"Member with id '{member_id}' not found.")
+    summary = borrow_repository.get_member_fines_summary(db, member_id)
+    summary["member_id"] = member_id
+    summary["member_name"] = member.full_name
+    return summary
+
+def get_unpaid_fines(db: Session, member_id: str = None):
+    """Get all transactions with unpaid fines."""
+    txns = borrow_repository.get_unpaid_fines(db, member_id)
+    return txns
 
 def generate_reminder(db: Session, borrow_id: str, ai_service) -> str:
     txn = borrow_repository.get_by_id(db, borrow_id)

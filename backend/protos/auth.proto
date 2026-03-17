@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package library.auth;
+
+import "common.proto";
+
+option go_package = "library/auth";
+
+// Auth Service - handles authentication and user management
+service AuthService {
+  // Register a new user
+  rpc Register(RegisterRequest) returns (UserResponse);
+
+  // Login and get access token
+  rpc Login(LoginRequest) returns (TokenResponse);
+
+  // Refresh access token
+  rpc RefreshToken(RefreshTokenRequest) returns (TokenResponse);
+
+  // Get current user info
+  rpc GetCurrentUser(library.common.Empty) returns (UserResponse);
+
+  // Logout (invalidate token)
+  rpc Logout(library.common.Empty) returns (library.common.StatusResponse);
+
+  // Change password
+  rpc ChangePassword(ChangePasswordRequest) returns (library.common.StatusResponse);
+
+  // Request password reset
+  rpc RequestPasswordReset(PasswordResetRequest) returns (library.common.StatusResponse);
+}
+
+// User message
+message User {
+  int32 id = 1;
+  string username = 2;
+  string email = 3;
+  optional string full_name = 4;
+  bool is_active = 5;
+  bool is_admin = 6;
+  string created_at = 7;
+}
+
+// Register request
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+  optional string full_name = 4;
+}
+
+// Login request
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// Token response
+message TokenResponse {
+  string access_token = 1;
+  string token_type = 2;
+  int32 expires_in = 3;  // Seconds until expiration
+  optional string refresh_token = 4;
+}
+
+// Refresh token request
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+// User response
+message UserResponse {
+  User user = 1;
+}
+
+// Change password request
+message ChangePasswordRequest {
+  string current_password = 1;
+  string new_password = 2;
+}
+
+// Password reset request
+message PasswordResetRequest {
+  string email = 1;
+}
+
