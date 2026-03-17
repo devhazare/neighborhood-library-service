@@ -16,5 +16,10 @@ python-jose[cryptography]==3.3.0
 passlib==1.7.4
 bcrypt==4.0.1
 email-validator==2.1.0
+# gRPC dependencies
+grpcio==1.62.0
+grpcio-tools==1.62.0
+grpcio-reflection==1.62.0
+protobuf==4.25.3
 
 

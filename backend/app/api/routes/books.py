@@ -1,13 +1,12 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.auth import get_current_active_user
 from app.models.user import User
 from app.schemas.book import BookCreate, BookUpdate, BookResponse, BookListResponse
-from app.schemas.ai import AIEnrichmentResponse
+from app.schemas.ai import AIEnrichmentResponse, PDFMetadataResponse
 from app.services import book_service
 from app.services.ai_service import AIService
 from app.services.pdf_service import PDFService
@@ -76,4 +75,39 @@ def ai_enrich_book(
     current_user: User = Depends(get_current_active_user)
 ):
     return book_service.enrich_book_ai(db, book_id, ai_service, pdf_service)
+
+
+@router.post("/extract-pdf-metadata", response_model=PDFMetadataResponse)
+def extract_pdf_metadata(
+    file: UploadFile = File(...),
+    ai_service: AIService = Depends(get_ai_service),
+    pdf_service: PDFService = Depends(get_pdf_service),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Extract book metadata from uploaded PDF using AI."""
+    import tempfile
+    import os
+
+    # Validate file type
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    # Save to temp file
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+        tmp.write(file.file.read())
+        tmp_path = tmp.name
+
+    try:
+        # Extract text from PDF
+        text = pdf_service.extract_text(tmp_path)
+        if not text.strip():
+            raise HTTPException(status_code=400, detail="Could not extract text from PDF")
+
+        # Use AI to extract metadata
+        metadata = ai_service.extract_pdf_metadata(text)
+        return PDFMetadataResponse(**metadata)
+    finally:
+        # Clean up temp file
+        os.unlink(tmp_path)
+
 

@@ -1,7 +1,7 @@
 import json
 from app.ai.providers.base import AIProvider
 from app.ai.providers.mock_provider import MockAIProvider
-from app.ai.prompts import BOOK_ENRICHMENT_PROMPT, RECOMMENDATION_EXPLANATION_PROMPT, OVERDUE_REMINDER_PROMPT
+from app.ai.prompts import BOOK_ENRICHMENT_PROMPT, RECOMMENDATION_EXPLANATION_PROMPT, OVERDUE_REMINDER_PROMPT, PDF_METADATA_EXTRACTION_PROMPT
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -56,3 +56,18 @@ class OpenAICompatibleProvider(AIProvider):
         except Exception as e:
             logger.warning(f"OpenAI generate_reminder failed, using mock: {e}")
             return self.mock.generate_reminder(member_name, book_title, due_date, overdue_days)
+
+    def extract_pdf_metadata(self, text: str) -> dict:
+        try:
+            prompt = PDF_METADATA_EXTRACTION_PROMPT.format(text=text[:4000])  # Limit text length
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+            )
+            content = response.choices[0].message.content
+            return json.loads(content)
+        except Exception as e:
+            logger.warning(f"OpenAI extract_pdf_metadata failed, using mock: {e}")
+            return self.mock.extract_pdf_metadata(text)
+

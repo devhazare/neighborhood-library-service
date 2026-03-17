@@ -47,7 +47,7 @@ def count_overdue(db: Session) -> int:
 def get_by_member(db: Session, member_id: str) -> List[BorrowTransaction]:
     return db.query(BorrowTransaction).filter(BorrowTransaction.member_id == member_id).all()
 
-def update_return(db: Session, borrow_id: str, return_date: datetime.date) -> Optional[BorrowTransaction]:
+def update_return(db: Session, borrow_id: str, return_date: datetime.date, fine_per_day: float = 0.50, max_fine: float = 25.00) -> Optional[BorrowTransaction]:
     txn = get_by_id(db, borrow_id)
     if not txn:
         return None
@@ -55,15 +55,20 @@ def update_return(db: Session, borrow_id: str, return_date: datetime.date) -> Op
     txn.status = "returned"
     overdue = (return_date - txn.due_date).days
     txn.overdue_days = max(0, overdue)
+    # Calculate fine
+    if txn.overdue_days > 0:
+        fine = txn.overdue_days * fine_per_day
+        txn.fine_amount = min(fine, max_fine)
     db.commit()
     db.refresh(txn)
     return txn
 
-def mark_overdue_transactions(db: Session, today: datetime.date) -> None:
+def mark_overdue_transactions(db: Session, today: datetime.date, fine_per_day: float = 0.50, max_fine: float = 25.00) -> None:
     """Update all borrowed transactions past their due date to overdue status.
 
     overdue_days is calculated in Python to remain compatible with both
     SQLite (tests) and PostgreSQL (production).
+    Also calculates accumulated fines.
     """
     overdue_txns = db.query(BorrowTransaction).filter(
         BorrowTransaction.status == "borrowed",
@@ -72,7 +77,49 @@ def mark_overdue_transactions(db: Session, today: datetime.date) -> None:
     for txn in overdue_txns:
         txn.status = "overdue"
         txn.overdue_days = (today - txn.due_date).days
+        # Calculate fine
+        fine = txn.overdue_days * fine_per_day
+        txn.fine_amount = min(fine, max_fine)
     db.commit()
+
+def pay_fine(db: Session, borrow_id: str, payment_date: datetime.date) -> Optional[BorrowTransaction]:
+    """Mark a fine as paid."""
+    txn = get_by_id(db, borrow_id)
+    if not txn:
+        return None
+    txn.fine_paid = True
+    txn.fine_paid_date = payment_date
+    db.commit()
+    db.refresh(txn)
+    return txn
+
+def get_unpaid_fines(db: Session, member_id: str = None) -> List[BorrowTransaction]:
+    """Get all transactions with unpaid fines."""
+    query = db.query(BorrowTransaction).filter(
+        BorrowTransaction.fine_amount > 0,
+        BorrowTransaction.fine_paid == False
+    )
+    if member_id:
+        query = query.filter(BorrowTransaction.member_id == member_id)
+    return query.all()
+
+def get_member_fines_summary(db: Session, member_id: str) -> dict:
+    """Get fines summary for a member."""
+    txns = db.query(BorrowTransaction).filter(
+        BorrowTransaction.member_id == member_id,
+        BorrowTransaction.fine_amount > 0
+    ).all()
+
+    total_fines = sum(float(t.fine_amount) for t in txns)
+    paid_fines = sum(float(t.fine_amount) for t in txns if t.fine_paid)
+    outstanding_fines = total_fines - paid_fines
+
+    return {
+        "total_fines": total_fines,
+        "paid_fines": paid_fines,
+        "outstanding_fines": outstanding_fines,
+        "transactions_with_fines": len(txns)
+    }
 
 def enrich_with_book_member(db: Session, txn: BorrowTransaction) -> dict:
     """Return a dict with book_title and member_name added."""

@@ -26,3 +26,15 @@ class MockAIProvider(AIProvider):
             f"Dear {member_name}, friendly reminder that '{book_title}' is due on {due_date}. "
             f"Please return it on time. Thank you!"
         )
+
+    def extract_pdf_metadata(self, text: str) -> dict:
+        # Mock implementation - returns sample data for testing
+        return {
+            "title": "Sample Book Title",
+            "author": "Sample Author",
+            "isbn": None,
+            "publisher": None,
+            "published_year": None,
+            "category": "General",
+        }
+

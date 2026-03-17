@@ -11,10 +11,11 @@ Next.js frontend, and PostgreSQL database.
 - **Book management** — add, edit, search books with availability tracking
 - **Member management** — register and manage library members
 - **Borrow / return workflow** — issue books, process returns, automatic overdue detection
+- **Fine tracking** — automatic fine calculation for overdue books, payment tracking
 - **AI-powered book enrichment** — auto-generate summaries, tags, and reading levels via OpenAI
 - **Member book recommendations** — personalised suggestions based on borrowing history
 - **Overdue reminder generation** — draft reminder messages for overdue borrowings
-- **PDF upload** — attach PDF files to book records (optional)
+- **PDF upload** — attach PDF files to book records with AI metadata extraction
 
 ---
 
@@ -57,6 +58,7 @@ Database (PostgreSQL via SQLAlchemy)
 | **Frontend** | Next.js 14, TypeScript, Tailwind CSS |
 | **Database** | PostgreSQL 15 |
 | **AI** | OpenAI GPT-4o (optional); MockAIProvider as fallback |
+| **API** | REST (FastAPI) + gRPC-Web (Protocol Buffers) |
 | **Containerisation** | Docker, Docker Compose |
 
 ---
@@ -85,8 +87,9 @@ Once running, open:
 | URL | Description |
 |---|---|
 | http://localhost:3000 | Frontend UI |
-| http://localhost:8000 | Backend API |
+| http://localhost:8000 | Backend API (REST) |
 | http://localhost:8000/docs | Swagger UI (interactive API docs) |
+| localhost:50051 | gRPC Server |
 
 ---
 
@@ -127,6 +130,8 @@ npm run dev
 | `PDF_UPLOAD_DIR` | Directory for uploaded PDFs | `./uploads/pdfs` |
 | `MAX_BORROW_DAYS` | Default loan period in days | `14` |
 | `MAX_ACTIVE_BORROWINGS` | Maximum concurrent borrowings per member | `5` |
+| `FINE_PER_DAY` | Fine amount per overdue day | `0.50` |
+| `MAX_FINE_AMOUNT` | Maximum fine cap | `25.00` |
 | `DEBUG` | Enable debug mode | `false` |
 | `NEXT_PUBLIC_API_URL` | Backend API URL (frontend) | `http://localhost:8000` |
 
@@ -185,6 +190,44 @@ pytest tests/ -v
 
 ---
 
+## gRPC-Web Service
+
+The application also exposes gRPC endpoints for better performance and type safety.
+
+### Proto Files
+
+Located in `backend/protos/`:
+
+| File | Description |
+|---|---|
+| `common.proto` | Common types (pagination, IDs, status) |
+| `books.proto` | Book CRUD, PDF upload, AI enrichment |
+| `members.proto` | Member CRUD, recommendations |
+| `borrow.proto` | Borrow/return operations |
+| `auth.proto` | Authentication |
+
+### Generate gRPC Code
+
+```bash
+cd backend
+python scripts/generate_grpc.py
+```
+
+### Test with grpcurl
+
+```bash
+# List available services
+grpcurl -plaintext localhost:50051 list
+
+# List books
+grpcurl -plaintext -d '{"skip": 0, "limit": 10}' \
+  localhost:50051 library.books.BookService/ListBooks
+```
+
+See [docs/grpc-service.md](docs/grpc-service.md) for full documentation.
+
+---
+
 ## AI Features
 
 AI features are powered by OpenAI and activated when `OPENAI_API_KEY` is set.
@@ -222,7 +265,6 @@ A sample ECS task definition is provided at
 ## Future Improvements
 
 - Member authentication portal (self-service borrowing history)
-- Fine tracking and payment workflow
 - Email / SMS notifications for due-date reminders
 - Mobile application (React Native)
 - Advanced analytics dashboard (popular books, borrowing trends)

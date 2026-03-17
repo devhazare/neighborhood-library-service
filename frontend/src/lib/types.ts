@@ -65,8 +65,20 @@ export interface BorrowTransaction {
   status: 'borrowed' | 'returned' | 'overdue';
   overdue_days: number;
   reminder_sent: boolean;
+  fine_amount: number;
+  fine_paid: boolean;
+  fine_paid_date?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface FinesSummary {
+  member_id: string;
+  member_name?: string;
+  total_fines: number;
+  paid_fines: number;
+  outstanding_fines: number;
+  transactions_with_fines: number;
 }
 
 export interface AIEnrichment {

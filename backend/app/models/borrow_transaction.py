@@ -16,6 +16,10 @@ class BorrowTransaction(Base):
     status: Mapped[str] = mapped_column(sa.String(20), default="borrowed")
     overdue_days: Mapped[int] = mapped_column(sa.Integer, default=0)
     reminder_sent: Mapped[bool] = mapped_column(sa.Boolean, default=False)
+    # Fine tracking
+    fine_amount: Mapped[float] = mapped_column(sa.Numeric(10, 2), default=0.0)
+    fine_paid: Mapped[bool] = mapped_column(sa.Boolean, default=False)
+    fine_paid_date: Mapped[datetime.date | None] = mapped_column(sa.Date, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(sa.DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     updated_at: Mapped[datetime.datetime | None] = mapped_column(sa.DateTime, nullable=True, onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
 

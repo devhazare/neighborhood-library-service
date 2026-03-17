@@ -29,3 +29,8 @@ class AIService:
         result = self.provider.generate_reminder(member_name, book_title, due_date, overdue_days)
         ai_repository.log_enrichment(db, "borrow", borrow_id, "reminder", f"{member_name}/{book_title}", {"reminder": result})
         return result
+
+    def extract_pdf_metadata(self, text: str) -> dict:
+        """Extract book metadata from PDF text using AI."""
+        return self.provider.extract_pdf_metadata(text)
+

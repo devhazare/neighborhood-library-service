@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package library.borrow;
+
+import "common.proto";
+
+option go_package = "library/borrow";
+
+// Borrow Service - handles all borrowing and returning operations
+service BorrowService {
+  // Borrow a book
+  rpc BorrowBook(BorrowBookRequest) returns (BorrowTransactionResponse);
+
+  // Return a book
+  rpc ReturnBook(ReturnBookRequest) returns (BorrowTransactionResponse);
+
+  // Get a borrow transaction by ID
+  rpc GetBorrowTransaction(library.common.IdRequest) returns (BorrowTransactionResponse);
+
+  // List active borrowings with pagination
+  rpc ListActiveBorrowings(library.common.PaginationRequest) returns (BorrowTransactionListResponse);
+
+  // List overdue borrowings with pagination
+  rpc ListOverdueBorrowings(library.common.PaginationRequest) returns (BorrowTransactionListResponse);
+
+  // List all borrowings with pagination
+  rpc ListAllBorrowings(ListBorrowingsRequest) returns (BorrowTransactionListResponse);
+
+  // Generate AI reminder for overdue book
+  rpc GenerateReminder(library.common.IdRequest) returns (ReminderResponse);
+
+  // Extend due date
+  rpc ExtendDueDate(ExtendDueDateRequest) returns (BorrowTransactionResponse);
+
+  // Get borrowing history for a book
+  rpc GetBookBorrowHistory(library.common.IdRequest) returns (BorrowTransactionListResponse);
+}
+
+// Borrow status enum
+enum BorrowStatus {
+  BORROW_STATUS_UNSPECIFIED = 0;
+  BORROW_STATUS_BORROWED = 1;
+  BORROW_STATUS_RETURNED = 2;
+  BORROW_STATUS_OVERDUE = 3;
+}
+
+// Borrow transaction message
+message BorrowTransaction {
+  string id = 1;
+  string book_id = 2;
+  string member_id = 3;
+  optional string book_title = 4;
+  optional string member_name = 5;
+  string borrow_date = 6;
+  string due_date = 7;
+  optional string return_date = 8;
+  BorrowStatus status = 9;
+  int32 overdue_days = 10;
+  bool reminder_sent = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+// Request to borrow a book
+message BorrowBookRequest {
+  string book_id = 1;
+  string member_id = 2;
+  optional int32 borrow_days = 3;  // Custom borrow period, defaults to system setting
+}
+
+// Request to return a book
+message ReturnBookRequest {
+  string borrow_id = 1;
+}
+
+// Single borrow transaction response
+message BorrowTransactionResponse {
+  BorrowTransaction transaction = 1;
+}
+
+// List of borrow transactions with pagination
+message BorrowTransactionListResponse {
+  repeated BorrowTransaction items = 1;
+  int32 total = 2;
+  int32 skip = 3;
+  int32 limit = 4;
+}
+
+// Request to list borrowings with filters
+message ListBorrowingsRequest {
+  int32 skip = 1;
+  int32 limit = 2;
+  optional BorrowStatus status = 3;
+  optional string member_id = 4;
+  optional string book_id = 5;
+  optional string from_date = 6;
+  optional string to_date = 7;
+}
+
+// AI-generated reminder response
+message ReminderResponse {
+  string borrow_id = 1;
+  string message = 2;
+  string member_name = 3;
+  string book_title = 4;
+  string due_date = 5;
+  int32 overdue_days = 6;
+}
+
+// Request to extend due date
+message ExtendDueDateRequest {
+  string borrow_id = 1;
+  int32 extension_days = 2;  // Number of days to extend
+}
+
