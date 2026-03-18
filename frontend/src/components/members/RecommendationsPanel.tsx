@@ -21,7 +21,7 @@ export default function RecommendationsPanel({ memberId }: RecommendationsPanelP
     setError(null);
     try {
       const r = await membersApi.getRecommendations(memberId);
-      setRecs(r.data);
+      setRecs(r.data.recommendations || []);
       setFetched(true);
     } catch {
       setError('Failed to load recommendations.');
