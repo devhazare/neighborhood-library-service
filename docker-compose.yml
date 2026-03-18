@@ -37,6 +37,7 @@ services:
       GRPC_PORT: 50051
     volumes:
       - pdf_uploads:/app/uploads/pdfs
+      - ./backend/scripts:/app/scripts
     depends_on:
       postgres:
         condition: service_healthy
