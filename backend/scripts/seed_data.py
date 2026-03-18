@@ -15,6 +15,13 @@ def seed():
     try:
         today = date.today()
 
+        # Clear existing data (in reverse order due to foreign keys)
+        db.query(BorrowTransaction).delete()
+        db.query(Member).delete()
+        db.query(Book).delete()
+        db.commit()
+        print("Cleared existing seed data.")
+
         # ------------------------------------------------------------------
         # Books
         # ------------------------------------------------------------------
