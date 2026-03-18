@@ -18,7 +18,7 @@ export default function MemberDetail({ member }: MemberDetailProps) {
   useEffect(() => {
     membersApi
       .getBorrowedBooks(member.id)
-      .then((r) => setBorrowings(r.data))
+      .then((r) => setBorrowings(r.data.items || []))
       .catch(() => setBorrowings([]))
       .finally(() => setLoading(false));
   }, [member.id]);
