@@ -78,9 +78,9 @@ export const membersApi = {
   update: (id: string, data: Partial<MemberCreate>) =>
     api.put<Member>(`/api/v1/members/${id}`, data),
   getBorrowedBooks: (id: string) =>
-    api.get<BorrowTransaction[]>(`/api/v1/members/${id}/borrowed-books`),
+    api.get<PaginatedResponse<BorrowTransaction>>(`/api/v1/members/${id}/borrowed-books`),
   getRecommendations: (id: string) =>
-    api.get<Recommendation[]>(`/api/v1/members/${id}/recommendations`),
+    api.get<{ recommendations: Recommendation[] }>(`/api/v1/members/${id}/recommendations`),
 };
 
 export const borrowApi = {

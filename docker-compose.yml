@@ -51,6 +51,8 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+    volumes:
+      - ./frontend/src:/app/src
     depends_on:
       - backend
 
