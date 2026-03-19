@@ -78,7 +78,8 @@ def get_borrowed_books(db: Session, member_id: str) -> List[BorrowTransaction]:
 
 def get_borrowed_books_enriched(db: Session, member_id: str) -> List[dict]:
     """Get borrowed books with book and member info enriched."""
+    from app.services import borrow_service
     get_member(db, member_id)
     txns = borrow_repository.get_by_member(db, member_id)
-    return borrow_repository.enrich_transactions_batch(db, txns)
+    return borrow_service.enrich_transactions(db, txns)
 

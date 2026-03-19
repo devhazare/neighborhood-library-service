@@ -8,7 +8,6 @@ from app.schemas.borrow import BorrowCreate, ReturnCreate, BorrowResponse, Borro
 from app.schemas.ai import ReminderResponse
 from app.services import borrow_service
 from app.services.ai_service import AIService
-from app.repositories import borrow_repository
 
 router = APIRouter(prefix="/api/v1", tags=["borrow"])
 
@@ -22,7 +21,7 @@ def borrow_book(
     current_user: User = Depends(get_current_active_user)
 ):
     txn = borrow_service.borrow_book(db, borrow_in.book_id, borrow_in.member_id)
-    data = borrow_repository.enrich_with_book_member(db, txn)
+    data = borrow_service.enrich_transaction(db, txn)
     return BorrowResponse(**data)
 
 @router.post("/return", response_model=BorrowResponse)
@@ -32,7 +31,7 @@ def return_book(
     current_user: User = Depends(get_current_active_user)
 ):
     txn = borrow_service.return_book(db, return_in.borrow_id)
-    data = borrow_repository.enrich_with_book_member(db, txn)
+    data = borrow_service.enrich_transaction(db, txn)
     return BorrowResponse(**data)
 
 @router.get("/borrow/active", response_model=BorrowListResponse)
@@ -43,8 +42,7 @@ def list_active(
     current_user: User = Depends(get_current_active_user)
 ):
     txns, total = borrow_service.list_active(db, skip, limit)
-    # Use batch enrichment to avoid N+1 queries
-    enriched = borrow_repository.enrich_transactions_batch(db, txns)
+    enriched = borrow_service.enrich_transactions(db, txns)
     items = [BorrowResponse(**data) for data in enriched]
     return BorrowListResponse(items=items, total=total)
 
@@ -56,8 +54,7 @@ def list_overdue(
     current_user: User = Depends(get_current_active_user)
 ):
     txns, total = borrow_service.list_overdue(db, skip, limit)
-    # Use batch enrichment to avoid N+1 queries
-    enriched = borrow_repository.enrich_transactions_batch(db, txns)
+    enriched = borrow_service.enrich_transactions(db, txns)
     items = [BorrowResponse(**data) for data in enriched]
     return BorrowListResponse(items=items, total=total)
 
@@ -80,7 +77,7 @@ def pay_fine(
 ):
     """Pay a fine for a borrow transaction."""
     txn = borrow_service.pay_fine(db, pay_request.borrow_id)
-    data = borrow_repository.enrich_with_book_member(db, txn)
+    data = borrow_service.enrich_transaction(db, txn)
     return BorrowResponse(**data)
 
 @router.get("/fines/unpaid", response_model=BorrowListResponse)
@@ -91,8 +88,7 @@ def list_unpaid_fines(
 ):
     """List all transactions with unpaid fines."""
     txns = borrow_service.get_unpaid_fines(db, member_id)
-    # Use batch enrichment to avoid N+1 queries
-    enriched = borrow_repository.enrich_transactions_batch(db, txns)
+    enriched = borrow_service.enrich_transactions(db, txns)
     items = [BorrowResponse(**data) for data in enriched]
     return BorrowListResponse(items=items, total=len(items))
 

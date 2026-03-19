@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from fastapi import UploadFile
 from app.models.book import Book
-from app.repositories import book_repository
-from app.core.exceptions import NotFoundError, ValidationError
+from app.repositories import book_repository, borrow_repository
+from app.core.exceptions import NotFoundError, ValidationError, BusinessRuleError
 from app.schemas.ai import AIEnrichmentResponse
 from app.core.logging import get_logger
 from typing import Optional, Tuple, List
@@ -58,10 +58,19 @@ def search_books(
     )
 
 def delete_book(db: Session, book_id: str) -> bool:
-    """Delete a book by ID."""
+    """Delete a book by ID. Prevents deletion if book has active borrows."""
     book = book_repository.get_by_id(db, book_id)
     if not book:
         raise NotFoundError(f"Book with id '{book_id}' not found.")
+
+    # Check for active borrows before deletion
+    active_borrows = borrow_repository.get_active_by_book(db, book_id)
+    if active_borrows:
+        raise BusinessRuleError(
+            f"Cannot delete book with {len(active_borrows)} active borrow(s). "
+            "All copies must be returned first."
+        )
+
     return book_repository.delete(db, book_id)
 
 def upload_pdf(db: Session, book_id: str, file: UploadFile, pdf_service) -> Book:
