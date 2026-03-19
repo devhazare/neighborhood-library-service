@@ -5,6 +5,7 @@ from app.repositories import book_repository
 from app.core.exceptions import NotFoundError, ValidationError
 from app.schemas.ai import AIEnrichmentResponse
 from app.core.logging import get_logger
+from typing import Optional, Tuple, List
 
 logger = get_logger(__name__)
 
@@ -35,6 +36,33 @@ def list_books(db: Session, skip: int = 0, limit: int = 100):
     books = book_repository.list_all(db, skip, limit)
     total = book_repository.count_all(db)
     return books, total
+
+def search_books(
+    db: Session,
+    query: Optional[str] = None,
+    category: Optional[str] = None,
+    author: Optional[str] = None,
+    available_only: bool = False,
+    skip: int = 0,
+    limit: int = 100
+) -> Tuple[List[Book], int]:
+    """Search books with various filters."""
+    return book_repository.search(
+        db,
+        query=query,
+        category=category,
+        author=author,
+        available_only=available_only,
+        skip=skip,
+        limit=limit
+    )
+
+def delete_book(db: Session, book_id: str) -> bool:
+    """Delete a book by ID."""
+    book = book_repository.get_by_id(db, book_id)
+    if not book:
+        raise NotFoundError(f"Book with id '{book_id}' not found.")
+    return book_repository.delete(db, book_id)
 
 def upload_pdf(db: Session, book_id: str, file: UploadFile, pdf_service) -> Book:
     book = get_book(db, book_id)

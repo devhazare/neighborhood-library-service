@@ -13,5 +13,9 @@ class SuccessResponse(BaseModel):
     message: str
     success: bool = True
 
+class MessageResponse(BaseModel):
+    """Simple message response for delete operations."""
+    message: str
+
 class ErrorResponse(BaseModel):
     detail: str

@@ -8,10 +8,11 @@ import { formatDate } from '@/lib/utils';
 interface MemberListProps {
   members: Member[];
   onEdit: (member: Member) => void;
+  onDelete?: (member: Member) => void;
   onViewDetails: (member: Member) => void;
 }
 
-export default function MemberList({ members, onEdit, onViewDetails }: MemberListProps) {
+export default function MemberList({ members, onEdit, onDelete, onViewDetails }: MemberListProps) {
   const columns: Column<Member>[] = [
     {
       key: 'membership_id',
@@ -48,6 +49,11 @@ export default function MemberList({ members, onEdit, onViewDetails }: MemberLis
           <Button size="sm" variant="ghost" onClick={() => onEdit(m)}>
             Edit
           </Button>
+          {onDelete && (
+            <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => onDelete(m)}>
+              Delete
+            </Button>
+          )}
         </div>
       ),
     },

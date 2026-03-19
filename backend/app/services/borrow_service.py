@@ -19,6 +19,12 @@ def borrow_book(db: Session, book_id: str, member_id: str):
         raise BusinessRuleError("Member account is not active.")
     if book.available_copies <= 0:
         raise BusinessRuleError("No available copies of this book.")
+
+    # Check for duplicate borrowing - member already has this book borrowed
+    existing_borrow = borrow_repository.get_active_borrow_by_member_and_book(db, member_id, book_id)
+    if existing_borrow:
+        raise BusinessRuleError("Member already has this book borrowed. Please return it before borrowing again.")
+
     active_borrowings = borrow_repository.get_active_by_member(db, member_id)
     if len(active_borrowings) >= settings.MAX_ACTIVE_BORROWINGS:
         raise BusinessRuleError(f"Member has reached the maximum of {settings.MAX_ACTIVE_BORROWINGS} active borrowings.")

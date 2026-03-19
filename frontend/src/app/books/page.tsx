@@ -10,14 +10,23 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
+import ApiError, { parseApiError } from '@/components/ui/ApiError';
+import Pagination, { usePagination } from '@/components/ui/Pagination';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function BooksPage() {
+const CATEGORIES = ['Fiction', 'History', 'Technology', 'Science', 'Self-Help'];
+
+function BooksPageContent() {
   const [books, setBooks] = useState<Book[]>([]);
-  const [filtered, setFiltered] = useState<Book[]>([]);
   const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('');
+  const [availableOnly, setAvailableOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination
+  const pagination = usePagination(25);
 
   // Modals
   const [formOpen, setFormOpen] = useState(false);
@@ -29,56 +38,75 @@ export default function BooksPage() {
     setLoading(true);
     setError(null);
     try {
-      const r = await booksApi.list(0, 200);
+      const hasFilters = search || category || availableOnly;
+      const r = hasFilters
+        ? await booksApi.search({
+            q: search || undefined,
+            category: category || undefined,
+            available_only: availableOnly || undefined,
+            skip: pagination.skip,
+            limit: pagination.pageSize,
+          })
+        : await booksApi.list(pagination.skip, pagination.pageSize);
       setBooks(r.data.items);
-      setFiltered(r.data.items);
-    } catch {
-      setError('Failed to load books. Is the API running?');
+      pagination.setTotal(r.data.total);
+    } catch (err) {
+      setError(parseApiError(err));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search, category, availableOnly, pagination.skip, pagination.pageSize]);
 
   useEffect(() => { load(); }, [load]);
 
+  // Debounce search and reset pagination
   useEffect(() => {
-    const q = search.toLowerCase();
-    setFiltered(
-      q
-        ? books.filter(
-            (b) =>
-              b.title.toLowerCase().includes(q) ||
-              b.author.toLowerCase().includes(q) ||
-              b.isbn?.toLowerCase().includes(q) ||
-              b.category?.toLowerCase().includes(q)
-          )
-        : books
-    );
-  }, [search, books]);
+    const timer = setTimeout(() => {
+      pagination.reset();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, category, availableOnly]);
 
   async function handleCreate(data: BookCreate, pdfFile?: File) {
-    const response = await booksApi.create(data);
-    // If a PDF was uploaded, attach it to the newly created book
-    if (pdfFile) {
-      await booksApi.uploadPdf(response.data.id, pdfFile);
+    try {
+      const response = await booksApi.create(data);
+      if (pdfFile) {
+        await booksApi.uploadPdf(response.data.id, pdfFile);
+      }
+      setFormOpen(false);
+      await load();
+    } catch (err) {
+      setError(parseApiError(err));
     }
-    setFormOpen(false);
-    await load();
   }
 
   async function handleUpdate(data: BookCreate) {
     if (!editTarget) return;
-    await booksApi.update(editTarget.id, data);
-    setEditTarget(null);
-    await load();
+    try {
+      await booksApi.update(editTarget.id, data);
+      setEditTarget(null);
+      await load();
+    } catch (err) {
+      setError(parseApiError(err));
+    }
+  }
+
+  async function handleDelete(book: Book) {
+    if (!confirm(`Are you sure you want to delete "${book.title}"?`)) return;
+    try {
+      await booksApi.delete(book.id);
+      await load();
+    } catch (err) {
+      setError(parseApiError(err));
+    }
   }
 
   async function handleUploadPdf(book: Book, file: File) {
     try {
       await booksApi.uploadPdf(book.id, file);
       await load();
-    } catch {
-      setError('Failed to upload PDF. Please try again.');
+    } catch (err) {
+      setError(parseApiError(err));
     }
   }
 
@@ -91,49 +119,72 @@ export default function BooksPage() {
     if (!aiTarget) throw new Error('No book selected');
     const r = await booksApi.aiEnrich(aiTarget.id);
     setAiEnrichment(r.data);
-    await load(); // refresh book data
+    await load();
     return r.data;
   }
 
   return (
-    <ProtectedRoute>
-      <div className="space-y-4">
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex-1 min-w-48">
-            <Input
-              placeholder="Search books by title, author, ISBN, category…"
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 min-w-48">
+          <Input
+            placeholder="Search books by title, author, ISBN…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <select
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
+          <option value="">All Categories</option>
+          {CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            checked={availableOnly}
+            onChange={(e) => setAvailableOnly(e.target.checked)}
+            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          Available only
+        </label>
         <Button onClick={() => setFormOpen(true)}>+ Add Book</Button>
       </div>
 
-      {/* Stats row */}
-      <p className="text-sm text-gray-500">
-        Showing {filtered.length} of {books.length} books
-      </p>
+      {/* Error display */}
+      {error && <ApiError message={error} onRetry={load} />}
 
       {/* Content */}
       {loading ? (
         <div className="flex justify-center py-16">
           <LoadingSpinner size="lg" />
         </div>
-      ) : error ? (
-        <div className="rounded-xl bg-red-50 border border-red-200 p-6 text-center">
-          <p className="text-red-700">{error}</p>
-          <Button variant="secondary" size="sm" className="mt-3" onClick={load}>
-            Retry
-          </Button>
-        </div>
       ) : (
-        <BookList
-          books={filtered}
-          onEdit={(b) => setEditTarget(b)}
-          onUploadPdf={handleUploadPdf}
-          onAiEnrich={openAi}
-        />
+        <>
+          <BookList
+            books={books}
+            onEdit={(b) => setEditTarget(b)}
+            onDelete={handleDelete}
+            onUploadPdf={handleUploadPdf}
+            onAiEnrich={openAi}
+          />
+
+          {/* Pagination */}
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.total}
+            pageSize={pagination.pageSize}
+            onPageChange={pagination.handlePageChange}
+            onPageSizeChange={pagination.handlePageSizeChange}
+            className="mt-4 pt-4 border-t border-gray-200"
+          />
+        </>
       )}
 
       {/* Add Book Modal */}
@@ -182,7 +233,16 @@ export default function BooksPage() {
           />
         )}
       </Modal>
-      </div>
+    </div>
+  );
+}
+
+export default function BooksPage() {
+  return (
+    <ProtectedRoute>
+      <ErrorBoundary>
+        <BooksPageContent />
+      </ErrorBoundary>
     </ProtectedRoute>
   );
 }
