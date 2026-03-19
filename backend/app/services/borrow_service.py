@@ -4,9 +4,24 @@ from app.repositories import borrow_repository, book_repository, member_reposito
 from app.core.exceptions import NotFoundError, BusinessRuleError
 from app.core.config import settings
 from app.core.logging import get_logger
-from typing import List
+from typing import List, Dict
 
 logger = get_logger(__name__)
+
+
+# ==================== Enrichment Methods ====================
+
+def enrich_transaction(db: Session, txn) -> Dict:
+    """Enrich a single transaction with book and member info."""
+    return borrow_repository.enrich_with_book_member(db, txn)
+
+
+def enrich_transactions(db: Session, transactions: List) -> List[Dict]:
+    """Batch enrich transactions with book and member info."""
+    return borrow_repository.enrich_transactions_batch(db, transactions)
+
+
+# ==================== Core Operations ====================
 
 def borrow_book(db: Session, book_id: str, member_id: str):
     book = book_repository.get_by_id(db, book_id)
