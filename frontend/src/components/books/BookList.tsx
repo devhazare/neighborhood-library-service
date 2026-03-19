@@ -10,11 +10,12 @@ import Button from '@/components/ui/Button';
 interface BookListProps {
   books: Book[];
   onEdit: (book: Book) => void;
+  onDelete?: (book: Book) => void;
   onUploadPdf: (book: Book, file: File) => void;
   onAiEnrich: (book: Book) => void;
 }
 
-export default function BookList({ books, onEdit, onUploadPdf, onAiEnrich }: BookListProps) {
+export default function BookList({ books, onEdit, onDelete, onUploadPdf, onAiEnrich }: BookListProps) {
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   const columns: Column<Book>[] = [
@@ -54,6 +55,11 @@ export default function BookList({ books, onEdit, onUploadPdf, onAiEnrich }: Boo
           <Button size="sm" variant="ghost" onClick={() => onEdit(b)}>
             Edit
           </Button>
+          {onDelete && (
+            <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => onDelete(b)}>
+              Delete
+            </Button>
+          )}
           <Button
             size="sm"
             variant="ghost"

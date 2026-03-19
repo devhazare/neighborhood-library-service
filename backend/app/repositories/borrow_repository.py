@@ -1,7 +1,7 @@
 import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
-from typing import List, Optional
+from typing import List, Optional, Dict
 from app.models.borrow_transaction import BorrowTransaction
 from app.models.book import Book
 from app.models.member import Member
@@ -25,6 +25,16 @@ def get_active_by_book(db: Session, book_id: str) -> List[BorrowTransaction]:
     return db.query(BorrowTransaction).filter(
         and_(BorrowTransaction.book_id == book_id, BorrowTransaction.status.in_(["borrowed", "overdue"]))
     ).all()
+
+def get_active_borrow_by_member_and_book(db: Session, member_id: str, book_id: str) -> Optional[BorrowTransaction]:
+    """Check if a member already has an active borrow for a specific book."""
+    return db.query(BorrowTransaction).filter(
+        and_(
+            BorrowTransaction.member_id == member_id,
+            BorrowTransaction.book_id == book_id,
+            BorrowTransaction.status.in_(["borrowed", "overdue"])
+        )
+    ).first()
 
 def list_active(db: Session, skip: int = 0, limit: int = 100) -> List[BorrowTransaction]:
     return db.query(BorrowTransaction).filter(
@@ -129,3 +139,33 @@ def enrich_with_book_member(db: Session, txn: BorrowTransaction) -> dict:
     data["book_title"] = book.title if book else None
     data["member_name"] = member.full_name if member else None
     return data
+
+def enrich_transactions_batch(db: Session, transactions: List[BorrowTransaction]) -> List[dict]:
+    """Batch enrich transactions with book and member info to avoid N+1 queries."""
+    if not transactions:
+        return []
+
+    # Collect all unique book_ids and member_ids
+    book_ids = {txn.book_id for txn in transactions}
+    member_ids = {txn.member_id for txn in transactions}
+
+    # Fetch all books and members in single queries
+    books = db.query(Book).filter(Book.id.in_(book_ids)).all()
+    members = db.query(Member).filter(Member.id.in_(member_ids)).all()
+
+    # Create lookup dictionaries
+    book_map: Dict[str, Book] = {b.id: b for b in books}
+    member_map: Dict[str, Member] = {m.id: m for m in members}
+
+    # Enrich transactions
+    results = []
+    for txn in transactions:
+        data = {c.name: getattr(txn, c.name) for c in txn.__table__.columns}
+        book = book_map.get(txn.book_id)
+        member = member_map.get(txn.member_id)
+        data["book_title"] = book.title if book else None
+        data["member_name"] = member.full_name if member else None
+        results.append(data)
+
+    return results
+

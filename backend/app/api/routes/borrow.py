@@ -43,7 +43,9 @@ def list_active(
     current_user: User = Depends(get_current_active_user)
 ):
     txns, total = borrow_service.list_active(db, skip, limit)
-    items = [BorrowResponse(**borrow_repository.enrich_with_book_member(db, t)) for t in txns]
+    # Use batch enrichment to avoid N+1 queries
+    enriched = borrow_repository.enrich_transactions_batch(db, txns)
+    items = [BorrowResponse(**data) for data in enriched]
     return BorrowListResponse(items=items, total=total)
 
 @router.get("/borrow/overdue", response_model=BorrowListResponse)
@@ -54,7 +56,9 @@ def list_overdue(
     current_user: User = Depends(get_current_active_user)
 ):
     txns, total = borrow_service.list_overdue(db, skip, limit)
-    items = [BorrowResponse(**borrow_repository.enrich_with_book_member(db, t)) for t in txns]
+    # Use batch enrichment to avoid N+1 queries
+    enriched = borrow_repository.enrich_transactions_batch(db, txns)
+    items = [BorrowResponse(**data) for data in enriched]
     return BorrowListResponse(items=items, total=total)
 
 @router.post("/borrow/{borrow_id}/generate-reminder", response_model=ReminderResponse)
@@ -87,7 +91,9 @@ def list_unpaid_fines(
 ):
     """List all transactions with unpaid fines."""
     txns = borrow_service.get_unpaid_fines(db, member_id)
-    items = [BorrowResponse(**borrow_repository.enrich_with_book_member(db, t)) for t in txns]
+    # Use batch enrichment to avoid N+1 queries
+    enriched = borrow_repository.enrich_transactions_batch(db, txns)
+    items = [BorrowResponse(**data) for data in enriched]
     return BorrowListResponse(items=items, total=len(items))
 
 @router.get("/members/{member_id}/fines", response_model=FinesSummary)

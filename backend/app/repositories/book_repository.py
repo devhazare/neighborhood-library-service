@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from sqlalchemy import or_, and_
+from typing import List, Optional, Tuple
 from app.models.book import Book
 
 def create(db: Session, book_data: dict) -> Book:
@@ -20,6 +21,46 @@ def list_all(db: Session, skip: int = 0, limit: int = 100) -> List[Book]:
 
 def count_all(db: Session) -> int:
     return db.query(Book).count()
+
+def search(
+    db: Session,
+    query: Optional[str] = None,
+    category: Optional[str] = None,
+    author: Optional[str] = None,
+    available_only: bool = False,
+    skip: int = 0,
+    limit: int = 100
+) -> Tuple[List[Book], int]:
+    """Search books with various filters."""
+    q = db.query(Book)
+
+    # Text search across title, author, ISBN
+    if query:
+        search_term = f"%{query}%"
+        q = q.filter(
+            or_(
+                Book.title.ilike(search_term),
+                Book.author.ilike(search_term),
+                Book.isbn.ilike(search_term),
+                Book.publisher.ilike(search_term),
+            )
+        )
+
+    # Filter by category
+    if category:
+        q = q.filter(Book.category.ilike(f"%{category}%"))
+
+    # Filter by author
+    if author:
+        q = q.filter(Book.author.ilike(f"%{author}%"))
+
+    # Filter by availability
+    if available_only:
+        q = q.filter(Book.available_copies > 0)
+
+    total = q.count()
+    items = q.offset(skip).limit(limit).all()
+    return items, total
 
 def update(db: Session, book_id: str, update_data: dict) -> Optional[Book]:
     book = get_by_id(db, book_id)

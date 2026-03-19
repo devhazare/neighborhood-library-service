@@ -11,33 +11,51 @@ Next.js frontend, and PostgreSQL database.
 - **Book management** — add, edit, search books with availability tracking
 - **Member management** — register and manage library members
 - **Borrow / return workflow** — issue books, process returns, automatic overdue detection
+- **Duplicate borrowing prevention** — members cannot borrow the same book twice until returned
 - **Fine tracking** — automatic fine calculation for overdue books, payment tracking
 - **AI-powered book enrichment** — auto-generate summaries, tags, and reading levels via OpenAI
 - **Member book recommendations** — personalised suggestions based on borrowing history
 - **Overdue reminder generation** — draft reminder messages for overdue borrowings
 - **PDF upload** — attach PDF files to book records with AI metadata extraction
+- **Data integrity constraints** — database-level constraints ensure data consistency
 
 ---
 
 ## Architecture
 
-The application follows a clean layered architecture:
+The application follows a clean layered architecture with strict separation of concerns:
 
 ```
 HTTP Request
     │
     ▼
-Routes (FastAPI routers)
+Routes (FastAPI routers)     ← Input validation, auth, response formatting
     │
     ▼
-Services (business logic)
+Services (business logic)    ← Business rules, orchestration, transactions
     │
     ▼
-Repositories (database access)
+Repositories (data access)   ← Database queries, CRUD operations
     │
     ▼
-Database (PostgreSQL via SQLAlchemy)
+Database (PostgreSQL)        ← Data storage with constraints
 ```
+
+### Layer Responsibilities
+
+| Layer | Responsibility |
+|---|---|
+| **Routes** | HTTP handling, request validation, authentication, response serialization |
+| **Services** | Business logic, validation rules, orchestrating repository calls |
+| **Repositories** | Database operations, query building, data mapping |
+| **Models** | SQLAlchemy ORM entities with constraints |
+| **Schemas** | Pydantic models for request/response validation |
+
+### Key Principles
+- Routes never access repositories directly — always through services
+- Services handle all business logic and validation
+- Repositories are pure data access with no business logic
+- Batch operations used to avoid N+1 query patterns
 
 ---
 
@@ -172,6 +190,110 @@ This creates:
 
 ---
 
+## API Endpoints
+
+### Books
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/books` | Create a new book |
+| `GET` | `/api/v1/books` | List all books |
+| `GET` | `/api/v1/books/search` | Search and filter books |
+| `GET` | `/api/v1/books/{id}` | Get book by ID |
+| `PUT` | `/api/v1/books/{id}` | Update a book |
+| `DELETE` | `/api/v1/books/{id}` | Delete a book |
+| `POST` | `/api/v1/books/{id}/upload-pdf` | Upload PDF for a book |
+| `POST` | `/api/v1/books/{id}/ai-enrich` | AI-enrich book metadata |
+
+**Search Parameters** (`/api/v1/books/search`):
+- `q` — Search query (matches title, author, ISBN, publisher)
+- `category` — Filter by category
+- `author` — Filter by author
+- `available_only` — Only show available books (true/false)
+
+### Members
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/members` | Create a new member |
+| `GET` | `/api/v1/members` | List all members |
+| `GET` | `/api/v1/members/search` | Search and filter members |
+| `GET` | `/api/v1/members/{id}` | Get member by ID |
+| `PUT` | `/api/v1/members/{id}` | Update a member |
+| `DELETE` | `/api/v1/members/{id}` | Delete a member |
+| `GET` | `/api/v1/members/{id}/borrowed-books` | Get member's borrowed books |
+| `GET` | `/api/v1/members/{id}/recommendations` | Get AI book recommendations |
+
+**Search Parameters** (`/api/v1/members/search`):
+- `q` — Search query (matches name, email, membership ID, phone)
+- `status` — Filter by status (active/inactive)
+
+### Borrow Operations
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/borrow` | Borrow a book |
+| `POST` | `/api/v1/return` | Return a book |
+| `GET` | `/api/v1/borrow/active` | List active borrowings |
+| `GET` | `/api/v1/borrow/overdue` | List overdue borrowings |
+| `POST` | `/api/v1/borrow/{id}/generate-reminder` | Generate AI overdue reminder |
+
+### Fines
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/fines/pay` | Pay a fine |
+| `GET` | `/api/v1/fines/unpaid` | List unpaid fines |
+| `GET` | `/api/v1/members/{id}/fines` | Get member's fines summary |
+
+---
+
+## Database Constraints
+
+The database enforces data integrity through various constraints:
+
+### Borrow Transactions
+| Constraint | Description |
+|---|---|
+| `ix_unique_active_borrow` | Prevents duplicate active borrowings (same member + book) |
+| `ck_borrow_status` | Status must be 'borrowed', 'overdue', or 'returned' |
+| `ck_borrow_fine_positive` | Fine amount must be >= 0 |
+| `ck_borrow_overdue_days_positive` | Overdue days must be >= 0 |
+| `ck_borrow_due_after_borrow` | Due date must be >= borrow date |
+| `ck_borrow_return_after_borrow` | Return date must be >= borrow date |
+
+### Books
+| Constraint | Description |
+|---|---|
+| `ck_books_copies` | Available copies must be between 0 and total copies |
+| `ck_books_total_copies_positive` | Total copies must be >= 0 |
+| `books_isbn_key` | ISBN must be unique |
+
+### Members
+| Constraint | Description |
+|---|---|
+| `ck_member_status` | Status must be 'active' or 'inactive' |
+| `members_membership_id_key` | Membership ID must be unique |
+| `members_email_key` | Email must be unique |
+
+---
+
+## Business Rules
+
+The application enforces the following business rules:
+
+| Rule | Description |
+|---|---|
+| **Duplicate borrowing prevention** | A member cannot borrow the same book if they already have an active (borrowed/overdue) transaction for it |
+| **Available copies check** | A book can only be borrowed if `available_copies > 0` |
+| **Active member required** | Only members with `status = 'active'` can borrow books |
+| **Maximum borrowings limit** | Members cannot exceed `MAX_ACTIVE_BORROWINGS` (default: 5) concurrent loans |
+| **Outstanding fines block** | Members with unpaid fines cannot borrow new books |
+| **Automatic overdue detection** | Transactions past `due_date` are marked as 'overdue' |
+| **Fine calculation** | Fines are calculated as `overdue_days × FINE_PER_DAY`, capped at `MAX_FINE_AMOUNT` |
+
+---
+
 ## Running Tests
 
 ```bash
@@ -269,4 +391,17 @@ A sample ECS task definition is provided at
 - Mobile application (React Native)
 - Advanced analytics dashboard (popular books, borrowing trends)
 - Multi-branch support
+
+---
+
+## Performance Optimizations
+
+The application implements several performance optimizations:
+
+| Optimization | Description |
+|---|---|
+| **Batch enrichment** | List endpoints fetch related books and members in 2 queries instead of N+1 |
+| **Set-based lookups** | Recommendation scoring uses sets for O(1) membership testing |
+| **Database indexes** | Indexes on frequently queried columns (status, due_date, member_id, book_id) |
+| **Partial unique index** | `ix_unique_active_borrow` only indexes active transactions |
 
