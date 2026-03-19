@@ -8,8 +8,8 @@ class BorrowTransaction(Base):
     __tablename__ = "borrow_transactions"
 
     id: Mapped[str] = mapped_column(sa.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    book_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("books.id"), nullable=False)
-    member_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("members.id"), nullable=False)
+    book_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("books.id", ondelete="RESTRICT"), nullable=False)
+    member_id: Mapped[str] = mapped_column(sa.String(36), sa.ForeignKey("members.id", ondelete="RESTRICT"), nullable=False)
     borrow_date: Mapped[datetime.date] = mapped_column(sa.Date, nullable=False)
     due_date: Mapped[datetime.date] = mapped_column(sa.Date, nullable=False)
     return_date: Mapped[datetime.date | None] = mapped_column(sa.Date, nullable=True)
@@ -28,4 +28,16 @@ class BorrowTransaction(Base):
         sa.Index("ix_borrow_book_id", "book_id"),
         sa.Index("ix_borrow_status", "status"),
         sa.Index("ix_borrow_due_date", "due_date"),
+        # Partial unique index for preventing duplicate active borrowings (PostgreSQL)
+        sa.Index(
+            "ix_unique_active_borrow_orm",
+            "member_id", "book_id",
+            unique=True,
+            postgresql_where=sa.text("status IN ('borrowed', 'overdue')")
+        ),
+        # Check constraints
+        sa.CheckConstraint("status IN ('borrowed', 'overdue', 'returned')", name="ck_borrow_status_orm"),
+        sa.CheckConstraint("fine_amount >= 0", name="ck_borrow_fine_positive_orm"),
+        sa.CheckConstraint("overdue_days >= 0", name="ck_borrow_overdue_days_positive_orm"),
+        sa.CheckConstraint("due_date >= borrow_date", name="ck_borrow_due_after_borrow_orm"),
     )

@@ -27,4 +27,7 @@ class Book(Base):
 
     __table_args__ = (
         sa.Index("ix_books_isbn", "isbn"),
+        # Check constraints for data integrity
+        sa.CheckConstraint("total_copies >= 0", name="ck_books_total_copies_positive_orm"),
+        sa.CheckConstraint("available_copies >= 0 AND available_copies <= total_copies", name="ck_books_copies_orm"),
     )

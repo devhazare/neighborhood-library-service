@@ -20,4 +20,6 @@ class Member(Base):
 
     __table_args__ = (
         sa.Index("ix_members_membership_id", "membership_id"),
+        # Check constraint for status
+        sa.CheckConstraint("status IN ('active', 'inactive')", name="ck_member_status_orm"),
     )

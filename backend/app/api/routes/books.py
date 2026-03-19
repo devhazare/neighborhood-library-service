@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
 from sqlalchemy.orm import Session
+from typing import Optional
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.exceptions import NotFoundError, ValidationError
@@ -7,6 +8,7 @@ from app.core.auth import get_current_active_user
 from app.models.user import User
 from app.schemas.book import BookCreate, BookUpdate, BookResponse, BookListResponse
 from app.schemas.ai import AIEnrichmentResponse, PDFMetadataResponse
+from app.schemas.common import MessageResponse
 from app.services import book_service
 from app.services.ai_service import AIService
 from app.services.pdf_service import PDFService
@@ -38,6 +40,29 @@ def list_books(
     books, total = book_service.list_books(db, skip, limit)
     return BookListResponse(items=books, total=total)
 
+@router.get("/search", response_model=BookListResponse)
+def search_books(
+    q: Optional[str] = Query(None, description="Search query (title, author, ISBN, publisher)"),
+    category: Optional[str] = Query(None, description="Filter by category"),
+    author: Optional[str] = Query(None, description="Filter by author"),
+    available_only: bool = Query(False, description="Only show books with available copies"),
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Search and filter books."""
+    books, total = book_service.search_books(
+        db,
+        query=q,
+        category=category,
+        author=author,
+        available_only=available_only,
+        skip=skip,
+        limit=limit
+    )
+    return BookListResponse(items=books, total=total)
+
 @router.get("/{book_id}", response_model=BookResponse)
 def get_book(
     book_id: str,
@@ -55,6 +80,16 @@ def update_book(
 ):
     data = book_in.model_dump(exclude_none=True)
     return book_service.update_book(db, book_id, data)
+
+@router.delete("/{book_id}", response_model=MessageResponse)
+def delete_book(
+    book_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete a book by ID."""
+    book_service.delete_book(db, book_id)
+    return MessageResponse(message="Book deleted successfully")
 
 @router.post("/{book_id}/upload-pdf", response_model=BookResponse)
 def upload_pdf(
