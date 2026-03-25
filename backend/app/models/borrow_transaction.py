@@ -28,6 +28,11 @@ class BorrowTransaction(Base):
         sa.Index("ix_borrow_book_id", "book_id"),
         sa.Index("ix_borrow_status", "status"),
         sa.Index("ix_borrow_due_date", "due_date"),
+        # Composite indexes for common query patterns
+        sa.Index("ix_borrow_member_status", "member_id", "status"),  # Member's active borrows
+        sa.Index("ix_borrow_book_status", "book_id", "status"),  # Book availability queries
+        sa.Index("ix_borrow_status_due_date", "status", "due_date"),  # Overdue queries
+        sa.Index("ix_borrow_fine_unpaid", "fine_paid", "member_id"),  # Unpaid fines lookup
         # Partial unique index for preventing duplicate active borrowings (PostgreSQL)
         sa.Index(
             "ix_unique_active_borrow_orm",
