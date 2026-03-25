@@ -1,0 +1,246 @@
+# Duplicate Borrow Protection - Visual Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    DUPLICATE BORROW PROTECTION                  │
+│                        Two-Layer Defense                        │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Scenario 1: Member Tries to Borrow Same Book Twice            │
+└─────────────────────────────────────────────────────────────────┘
+
+   Alice → POST /api/v1/borrow/borrow
+           { book_id: "Harry Potter", member_id: "Alice" }
+
+           ┌──────────────────────────────┐
+           │ 🛡️ Layer 1: Application Check│
+           │  (borrow_service.py)         │
+           └──────────────────────────────┘
+                       │
+                       ├─ Query: Find active borrow?
+                       │  WHERE member_id = 'Alice'
+                       │    AND book_id = 'Harry Potter'
+                       │    AND status IN ('borrowed', 'overdue')
+                       │
+                       ├─ Result: NOT FOUND ✅
+                       │
+                       ▼
+           ┌──────────────────────────────┐
+           │ Create borrow transaction     │
+           │ status = 'borrowed'          │
+           └──────────────────────────────┘
+                       │
+                       ▼
+                  ✅ SUCCESS!
+           Alice has borrowed "Harry Potter"
+
+
+   Alice → POST /api/v1/borrow/borrow (AGAIN!)
+           { book_id: "Harry Potter", member_id: "Alice" }
+
+           ┌──────────────────────────────┐
+           │ 🛡️ Layer 1: Application Check│
+           └──────────────────────────────┘
+                       │
+                       ├─ Query: Find active borrow?
+                       │
+                       ├─ Result: FOUND! ❌
+                       │  (Alice already has this book)
+                       │
+                       ▼
+           ┌──────────────────────────────┐
+           │ ❌ BLOCKED - BusinessRuleError│
+           │                              │
+           │ "Member already has this     │
+           │  book borrowed. Please       │
+           │  return it before borrowing  │
+           │  again."                     │
+           └──────────────────────────────┘
+                       │
+                       ▼
+                  HTTP 400
+
+   If Layer 1 somehow bypassed...
+
+           ┌──────────────────────────────┐
+           │ 🔒 Layer 2: Database Constraint│
+           │  (Unique Index)              │
+           └──────────────────────────────┘
+                       │
+                       ├─ Index check on INSERT:
+                       │  UNIQUE (member_id, book_id)
+                       │  WHERE status IN ('borrowed', 'overdue')
+                       │
+                       ├─ Result: DUPLICATE! ❌
+                       │
+                       ▼
+           ┌──────────────────────────────┐
+           │ ❌ BLOCKED - IntegrityError   │
+           │                              │
+           │ "Duplicate key violates      │
+           │  unique constraint"          │
+           └──────────────────────────────┘
+                       │
+                       ▼
+                  HTTP 500 → HTTP 409
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Scenario 2: Member Returns and Borrows Again                  │
+└─────────────────────────────────────────────────────────────────┘
+
+   Alice → POST /api/v1/borrow/return
+           { borrow_id: "txn-123" }
+
+           ┌──────────────────────────────┐
+           │ Update transaction           │
+           │ status = 'returned'          │
+           │ return_date = today          │
+           └──────────────────────────────┘
+                       │
+                       ▼
+                  ✅ SUCCESS!
+           Book returned, copy available again
+
+
+   Alice → POST /api/v1/borrow/borrow
+           { book_id: "Harry Potter", member_id: "Alice" }
+
+           ┌──────────────────────────────┐
+           │ 🛡️ Layer 1: Application Check│
+           └──────────────────────────────┘
+                       │
+                       ├─ Query: Find active borrow?
+                       │  WHERE status IN ('borrowed', 'overdue')
+                       │
+                       ├─ Result: NOT FOUND ✅
+                       │  (Previous is 'returned')
+                       │
+                       ▼
+           ┌──────────────────────────────┐
+           │ Create NEW borrow transaction│
+           │ status = 'borrowed'          │
+           └──────────────────────────────┘
+                       │
+                       ▼
+           ┌──────────────────────────────┐
+           │ 🔒 Database Index Check      │
+           └──────────────────────────────┘
+                       │
+                       ├─ Index only applies WHERE
+                       │  status IN ('borrowed', 'overdue')
+                       │
+                       ├─ Previous transaction is 'returned'
+                       │  → NOT in index ✅
+                       │
+                       ▼
+                  ✅ SUCCESS!
+           Alice borrowed "Harry Potter" again
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Scenario 3: Different Members, Same Book                      │
+└─────────────────────────────────────────────────────────────────┘
+
+   Alice → Borrow "Harry Potter" (copy 1)
+
+   ┌──────────────────────────────────┐
+   │ Index: (Alice, Harry Potter)    │
+   │ Status: borrowed ✅              │
+   └──────────────────────────────────┘
+
+
+   Bob → Borrow "Harry Potter" (copy 2)
+
+   ┌──────────────────────────────────┐
+   │ Index: (Bob, Harry Potter)      │
+   │ Status: borrowed ✅              │
+   └──────────────────────────────────┘
+
+   Different members → Different index entries → Both succeed! ✅
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Database Index Details                                         │
+└─────────────────────────────────────────────────────────────────┘
+
+Index Name: ix_unique_active_borrow_orm
+
+CREATE UNIQUE INDEX ix_unique_active_borrow_orm
+ON borrow_transactions (member_id, book_id)
+WHERE status IN ('borrowed', 'overdue');
+
+┌──────────────┬──────────────┬────────────┬────────┐
+│  member_id   │   book_id    │   status   │ In Idx?│
+├──────────────┼──────────────┼────────────┼────────┤
+│ Alice        │ Harry Potter │ borrowed   │   ✅   │
+│ Alice        │ Harry Potter │ returned   │   ❌   │ ← NOT in index
+│ Alice        │ Harry Potter │ borrowed   │   ✅   │ ← Would violate!
+│ Bob          │ Harry Potter │ borrowed   │   ✅   │ ← Different member OK
+└──────────────┴──────────────┴────────────┴────────┘
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Error Handling Flow                                            │
+└─────────────────────────────────────────────────────────────────┘
+
+Application Layer (borrow_service.py)
+           │
+           ├─ Check for duplicate
+           │
+           ├─ IF duplicate found:
+           │     raise BusinessRuleError(
+           │         "Member already has this book borrowed. "
+           │         "Please return it before borrowing again."
+           │     )
+           │
+           ▼
+Error Handler Middleware (error_handler.py)
+           │
+           ├─ Catch BusinessRuleError
+           │
+           ├─ Return JSON response:
+           │     {
+           │       "detail": "Member already has...",
+           │       "type": "business_rule_error"
+           │     }
+           │
+           ▼
+           HTTP 400 Bad Request
+
+
+Database Layer (if application bypassed)
+           │
+           ├─ Unique index violation
+           │
+           ├─ IntegrityError raised
+           │
+           ▼
+Error Handler Middleware
+           │
+           ├─ Catch IntegrityError
+           │
+           ├─ Return JSON response:
+           │     {
+           │       "detail": "Database constraint violation...",
+           │       "type": "integrity_error"
+           │     }
+           │
+           ▼
+           HTTP 409 Conflict
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Summary                                                         │
+└─────────────────────────────────────────────────────────────────┘
+
+✅ Layer 1 (Application):  Fast fail with clear user message
+✅ Layer 2 (Database):     Foolproof enforcement, cannot bypass
+✅ After return:           Member can borrow again
+✅ Multiple members:       Can borrow different copies
+✅ Overdue status:         Still blocks duplicate
+✅ Test coverage:          Comprehensive test suite
+
+🔒 Your system is SECURE against duplicate borrows! 🔒
+```
+
